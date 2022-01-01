@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>藏文手写字母识别</title>
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <style type="text/css">
+        body,html {
+            padding: 0;
+            margin: 0;
+        }
+        a,div,span {
+            font-family: "Arial","Microsoft YaHei","黑体","宋体",sans-serif;
+        }
+        .canvas-box {
+            display: inline-block;
+/*            margin: 40px auto;*/
+		    text-align: center;
+
+			margin-left: 400px;
+			margin-top: 5px;
+			background: #f5f5f5;
+			
+        }
+        .color-box {
+            width: 1500px;
+            display: block;
+	
+/*            margin: 20px auto;*/
+            text-align: center;
+        }
+        .color-item {
+            display: inline-block;
+            vertical-align: middle;
+            width: 48px;
+            height: 24px;
+/*            margin: 10px;*/
+            background:#E0D8D8
+            cursor: pointer;
+        }
+       
+        .color-item.active {
+            border: solid 3px #565656;
+        }
+        .btn {
+            display: inline-block;
+            width: 120px;
+            height: 40px;
+            line-height: 40px;
+            margin: 20px auto;
+            text-align: center;
+            font-size: 18px;
+            border: solid 1px #999;
+            border-radius: 5px;
+            cursor: pointer;
+			background:#E0D6D6;
+        }
+		.image{
+			margin-top: 1px;
+			margin-left: 60px;
+		
+		}
+		
+		.title{
+			
+		margin-top:1px;
+		}
+		.fir{
+			display:block;
+		}
+		.result{
+			margin-left: 100px;
+		}
+		.write {
+			margin-left: 0px;
+			
+        }
+		.tib{
+			display: inline-block;
+            width: 150px;
+            height: 60px;
+/*
+            line-height: 40px;
+			margin-top: 0px;
+*/
+/*			margin-right: 300px;*/
+/*            margin: 20px auto;*/
+            text-align: center;
+            font-size: 15px;
+            border: solid 1px #999;
+            border-radius: 5px;
+/*            cursor: pointer;*/
+			background:#f5f5f5;
+		}
+    </style>
+    
+    
+</head>
+<body >
+   <div class = "title">&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;<img src="{{ url_for('static', filename= './images/1.jpg',_t=val1) }}" aligen="center" width="100%" height="100"/></div><hr>
+   <div class="color-box">
+        <span class="write">手写框  &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span>
+        <span class="results">&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span>
+        <span class="results">&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span><span >&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span><span class="results">&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span>
+        <span class="results">识别结果</span>
+      
+    </div>
+   <div class="fir">
+   
+    <canvas class="canvas-box" id="canvas"></canvas>
+      <span>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span>
+       <p class="tib" >{{result}}</p>
+	  </div>
+ </div>
+   <div class="color-box">
+    <button class="btn" onclick=" canvasSaveToServer()">识别</button>
+     <button class="btn" onclick="clearDraw()">清除</button>
+   </div>
+<!--
+   <div class="section">
+        <button class="btn" onclick="createImage();">预览</button>
+        <img id="image_png" >
+    </div>
+-->
+<script type="text/javascript">
+var    canvas = document.getElementById('canvas');
+var    context = canvas.getContext("2d");
+var    isDraw = false; //定义变量控制画笔是否可用
+var movePos;         //定义变量存放初始画笔开始位置
+var linWidth = 10;
+var linColor = '#333';
+window.onload = function(){
+    draw();
+}
+function draw(){
+    canvas.width = 300;
+    canvas.height = 300;
+    context.strokeStyle = "black";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.strokeRect(0,0,300,300);
+
+}
+//画虚线（参照网上大神）
+function drawDashedLine(context, x1, y1, x2, y2, dashLength) {
+  dashLength = dashLength === undefined ? 5 : dashLength;
+  var deltaX = x2 - x1;
+  var deltaY = y2 - y1;
+  var numDashes = Math.floor(
+   Math.sqrt(deltaX * deltaX + deltaY * deltaY) / dashLength);
+   for (var i=0; i < numDashes; ++i) {
+   context[ i % 2 === 0 ? 'moveTo' : 'lineTo' ]    (x1 + (deltaX / numDashes) * i, y1 + (deltaY / numDashes) * i);
+   }
+  context.stroke();
+};
+//画直线
+function drawLine(context,x1,y1,x2,y2){
+    context.moveTo(x1,y1);
+    context.lineTo(x2,y2);
+    context.stroke();
+};
+//获取鼠标相对与canvas位置
+function getPos(x,y){
+    var box = canvas.getBoundingClientRect();
+    return {x: x-box.left,y: y-box.top};
+};
+//画笔
+function drawing(e){
+    if(isDraw){
+        var position = getPos(e.clientX,e.clientY);
+        context.strokeStyle = linColor;
+        context.lineWidth = linWidth;
+        context.save();
+        context.beginPath();
+        context.moveTo(movePos.x,movePos.y);
+        context.lineTo(position.x,position.y);
+        context.stroke();
+        movePos = position;
+        context.restore();
+    }
+}
+//鼠标点下
+canvas.onmousedown = function(e){
+    isDraw = true;
+    movePos = getPos(e.clientX,e.clientY);
+    drawing(e);
+}
+//鼠标移动
+canvas.onmousemove = function(e){
+    drawing(e);
+}
+//鼠标松开
+canvas.onmouseup = function(e){
+    isDraw = false;
+}
+//鼠标离开
+canvas.onmouseout =function(e){
+    isDraw = false;
+}
+//选择画笔颜色
+$('.color-item').on('click',function(){
+    $(this).addClass('active').siblings().removeClass('active');
+    linColor = $(this).css('background-color');
+});
+//清除
+function clearDraw(){
+    context.clearRect(0,0,500,500);
+    draw();
+}
+	
+
+function canvasSaveToServer() {
+        let imgUrl = canvas.toDataURL("image/png");
+	
+		this.imgUrl = imgUrl;
+		alert(imgUrl)
+        var imageDataB64 = imgUrl.substring(22);
+//        alert("savePic" + imageDataB64);
+ 
+        imgData = {uploadImg:imageDataB64};
+        var senddata = JSON.stringify(imgData);
+ 
+        //通过XMLHttpRequest 传送到后台
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/uploadcanvas", true);
+        xhr.setRequestHeader('content-type', 'application/json');
+        xhr.send(JSON.stringify(senddata));
+//		key = $(".form-control").val();
+//		console.log(key);
+//		window.location.href = '../cross_language/'+key;
+//	    var img_png_src = canvas.toDataURL("image/png"); //将画板保存为图片格式的函数
+//		alert(img_png_src)
+        window.location.href = './upload'
+	
+}
+//	预览
+function createImage() {
+        var img_png_src = canvas.toDataURL("image/png"); //将画板保存为图片格式的函数
+//        console.log('=====',img_png_src);//data:image/png;base64,iVBOR.....
+        document.getElementById("image_png").src = img_png_src;
+    }
+</script>
+</body>
+</html>
+
